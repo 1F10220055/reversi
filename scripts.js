@@ -1,5 +1,9 @@
 const board = document.getElementById('board');
 const colorHTML = document.getElementById('color');
+const cover = document.getElementById('cover');
+const turn = Math.floor(Math.random() * 2) + 1;
+let blackCount = 2;
+let whiteCount = 2;
 
 //  1->黒・2->白
 const boardStatus = [
@@ -13,9 +17,6 @@ const boardStatus = [
     [0, 0, 0, 0, 0, 0, 0, 0]
 ]
 
-let blackCount = 2;
-let whiteCount = 2;
-
 const isEnemy = (w, h, color) => {
     if (color === 1) {
         return boardStatus[h][w] === 2;
@@ -25,7 +26,7 @@ const isEnemy = (w, h, color) => {
 }
 
 //  ひっくり返せるマスを返す関数
-const turnover = (y, x, color) => {
+const canTurnover = (y, x, color) => {
     let result = [];
     const direction2turn = (x, y, direction) => {
         let turn = [];
@@ -56,17 +57,24 @@ const turnover = (y, x, color) => {
     return result;
 }
 
-const canPut = (color) => {
-    for (let h = 0; h < 8; h++) {
-        for (let w = 0; w < 8; w++) {
-            if (boardStatus[h][w] !== 0) continue;
-            let result = turnover(h, w, color).length;
-            if (result > 0) {
-                return true;
+const canPut = (h, w, color) => {
+    let result = canTurnover(h, w, color).length;
+    if (result > 0) {
+        return true;
+    }
+    return false;
+}
+
+const skip = (color) => {
+    for (let w = 0; w < 8; w++) {
+        for (let j = 0; j < 8; j++) {
+            if (boardStatus[j][w] !== 0) continue;
+            if (canPut(j, w, color)) {
+                return false;
             }
         }
     }
-    return false;
+    return true;
 }
 
 const judge = () => {
@@ -84,7 +92,7 @@ const judge = () => {
             }
         }
         return true;
-    } else if (canPut(1) === false && canPut(2) === false) {
+    } else if (skip(1) === true && skip(2) === true) {
         if (blackCount === whiteCount) {
             alert('引き分け');
         } else {
@@ -99,16 +107,56 @@ const judge = () => {
     return false;
 }
 
-let turn = 1;
+const opposite = (color) => {
+    let cnt = 0;
+    let pos;
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            if (boardStatus[i][j] !== 0) continue;
+            let result = canTurnover(i, j, color).length;
+            if (result > cnt) {
+                cnt = result;
+                pos = { 'x': j, 'y': i };
+            }
+        }
+    }
+    if (cnt > 0) {
+        if (turnover(pos.y, pos.x, color)) {
+            if (judge()) return;
+            if (skip(color === 1 ? 2 : 1)) {
+                alert('置くことが出来るマスが存在しないため、ターンがスキップされます。')
+                opposite(color);
+            }
+        }
+    }
+}
+
 const handleClick = (h, w) => {
     if (boardStatus[h][w] !== 0) return;
-    let result = turnover(h, w, turn);
-    if (result.length === 0) return;
-    boardStatus[h][w] = turn;
-    turn === 1 ? blackCount++ : whiteCount++;
+    cover.style.display = 'block';
+    if (turnover(h, w, turn)) {
+        if (judge()) return;
+        if (!skip(turn === 1 ? 2 : 1)) {
+            opposite(turn === 1 ? 2 : 1);
+        } else {
+            alert('置くことが出来るマスが存在しないため、ターンがスキップされます。')
+        }
+    }
+    cover.style.display = 'none';
+}
+
+const turnover = (h, w, color) => {
+    let result = canTurnover(h, w, color);
+    if (result.length === 0) return false;
+    boardStatus[h][w] = color;
+    if (color === 1) {
+        blackCount++;
+    } else {
+        whiteCount++;
+    }
     for (let cell of result) {
-        boardStatus[cell.y][cell.x] = turn;
-        if (turn === 1) {
+        boardStatus[cell.y][cell.x] = color;
+        if (color === 1) {
             blackCount++;
             whiteCount--;
         } else {
@@ -118,13 +166,8 @@ const handleClick = (h, w) => {
     }
     console.log(blackCount, whiteCount);
     generateBoard();
-    if (judge()) return;
-    if (canPut(turn === 1 ? 2 : 1)) {
-        turn = turn === 1 ? 2 : 1;
-        turn === 1 ? colorHTML.textContent = '●' : colorHTML.textContent = '○';
-    } else {
-        alert('置くことが出来るマスが存在しないため、ターンがスキップされます。')
-    }
+    displayNumber();
+    return true;
 }
 
 // Boardを生成する関数
@@ -157,4 +200,24 @@ const generateBoard = () => {
     }
 }
 
+const displayNumber = () => {
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            if (boardStatus[i][j] !== 0) continue;
+            let result = canTurnover(i, j, turn);
+            if (result.length > 0) {
+                let newSpan = document.createElement('span');
+                newSpan.setAttribute('class', 'number');
+                newSpan.textContent = result.length;
+                document.getElementById(`${i}-${j}`).appendChild(newSpan);
+            }
+        }
+    }
+}
+
 generateBoard();
+displayNumber();
+if (turn === 2) {
+    opposite(1);
+    colorHTML.textContent = '○';
+};
