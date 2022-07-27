@@ -51,6 +51,10 @@ body {
     #github>img {
         width: 350px;
     }
+    #status {
+        width: calc(40px * 8);
+        font-size: 1.3rem;
+    }
 }
 
 .black {
