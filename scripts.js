@@ -14,7 +14,7 @@ const handleClick = (h, w) => {
     coverElement.style.display = 'block';
 
     // 石を置く
-    let putted = board.putStone(w, h, board.player);
+    let putted = board.putStone(w, h, player);
     // 正しく処理できた場合
     if (putted) {
         // 盤面の表示を更新
@@ -24,7 +24,7 @@ const handleClick = (h, w) => {
         let judgeResult = board.judge();
         if (judgeResult === 'continue') {
             // 続行の場合
-            if (board.canPut(board.player === 1 ? 2 : 1)) {
+            if (board.canPut(player === 1 ? 2 : 1)) {
                 // 相手が石を置ける場合はCPUのターンに移行
                 opponent();
             } else {
@@ -48,22 +48,67 @@ const handleClick = (h, w) => {
 
 // CPUのターン
 const opponent = () => {
-    let maxPut = 0;
     let pos;
-    let color = board.player === 1 ? 2 : 1;
+    let color = player === 1 ? 2 : 1;
 
-    // 盤面の全てのマスを探索
-    for (let y = 0; y < 8; y++) {
-        for (let x = 0; x < 8; x++) {
-            if (board.getStoneColor(x, y) !== 0) continue;
-            let turnoverList = board.canTurnoverList(x, y, color);
-            if (turnoverList.length > maxPut) {
-                // 設置可能なマスで、ひっくり返せる最大値の取得
-                maxPut = turnoverList.length;
-                pos = { 'x': x, 'y': y };
+    const getMax = (board, color) => {
+        let max = 0;
+        let pos;
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                if (board.getStoneColor(x, y) !== 0) continue;
+                let turnoverList = board.canTurnoverList(x, y, color);
+                if (turnoverList.length > max) {
+                    max = turnoverList.length;
+                    pos = { x, y };
+                }
             }
         }
+        return { max, pos };
     }
+
+    const isEdge = (x, y) => {
+        return y === 7 && x === 7 || y === 0 && x === 0 || y === 7 && x === 0 || y === 0 && x === 7
+    }
+
+    const isNearEdge = (x, y) => {
+        let upperLeft = y === 1 && x === 1 || y === 0 && x === 1 || y === 1 && x === 0;
+        let upperRight = y === 1 && x === 6 || y === 0 && x === 6 || y === 1 && x === 7;
+        let lowerLeft = y === 7 && x === 1 || y === 6 && x === 1 || y === 6 && x === 0;
+        let lowerRight = y === 6 && x === 6 || y === 7 && x === 6 || y === 6 && x === 7
+        return upperLeft || upperRight || lowerLeft || lowerRight;
+    }
+
+    const search = () => {
+        let pos;
+        let score = -Infinity;
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                if (board.getStoneColor(x, y) !== 0) continue;
+                let turnoverList = board.canTurnoverList(x, y, color);
+                let selfCount = turnoverList.length;
+                if (selfCount > 0) {
+                    let temp = new Board();
+                    temp.board = JSON.parse(JSON.stringify(board.board));
+                    temp.putStone(x, y, color);
+                    let opponentCount = getMax(temp, color === 1 ? 2 : 1).max;
+                    let tempScore = selfCount - opponentCount * 1.5;
+                    if (isEdge(x, y)) {
+                        tempScore += 5;
+                    } else if (isNearEdge(x, y)) {
+                        tempScore -= 5;
+                    }
+                    if (tempScore > score) {
+                        score = tempScore;
+                        pos = { x, y };
+                    }
+                }
+            }
+        }
+        return pos;
+    }
+
+    pos = search();
 
     // 石を置く
     board.putStone(pos.x, pos.y, color)
@@ -129,7 +174,7 @@ const displayNumber = () => {
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
             if (board.getStoneColor(j, i) !== 0) continue;
-            let turnoverList = board.canTurnoverList(j, i, board.player);
+            let turnoverList = board.canTurnoverList(j, i, player);
             if (turnoverList.length > 0) {
                 let newSpan = document.createElement('span');
                 newSpan.setAttribute('class', 'number');
@@ -147,11 +192,12 @@ const displayCounter = () => {
 }
 
 
-let board = new Board(player = Math.floor(Math.random() * 2) + 1);
-displayBoard();
-displayNumber();
-displayCounter();
-if (board.player === 2) {
+let board = new Board();
+let player = Math.floor(Math.random() * 2) + 1;
+if (player === 2) {
     opponent(1);
     colorElement.textContent = '○';
 };
+displayBoard();
+displayNumber();
+displayCounter();

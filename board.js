@@ -1,5 +1,5 @@
 class Board {
-    constructor(player) {
+    constructor() {
         // 盤面の状態
         this.board = [
             [0, 0, 0, 0, 0, 0, 0, 0],
@@ -11,7 +11,6 @@ class Board {
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0]
         ];
-        this.player = player;   // プレイヤーの色
         this.black = 2;         // 黒の石の数
         this.white = 2;         // 白の石の数
     }
