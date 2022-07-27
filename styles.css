@@ -14,7 +14,11 @@ body {
     row-gap: 20px;
 }
 
-#App>p {
+#status {
+    width: calc(50px * 8);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 1.5rem;
 }
 
