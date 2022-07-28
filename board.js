@@ -134,4 +134,12 @@ class Board {
     getStoneColor(x, y) {
         return this.board[y][x];
     }
+
+    clone() {
+        let clone = new Board();
+        clone.board = JSON.parse(JSON.stringify(this.board));
+        clone.black = this.black;
+        clone.white = this.white;
+        return clone;
+    }
 }

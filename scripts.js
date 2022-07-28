@@ -79,6 +79,21 @@ const opponent = () => {
         return upperLeft || upperRight || lowerLeft || lowerRight;
     }
 
+    const calcScore = (board, color, x, y) => {
+        if (board.getStoneColor(x, y) !== 0) return;
+        let turnoverList = board.canTurnoverList(x, y, color);
+        if (turnoverList.length === 0) return;
+        let score = 0;
+        score += turnoverList.length;
+        let nextBoard = board.clone();
+        nextBoard.putStone(x, y, color);
+        let opponent = getMax(nextBoard, color === 1 ? 2 : 1);
+        score -= opponent.max * 1.5;
+        if (isEdge(x, y)) score += 5;
+        if (isNearEdge(x, y)) score -= 5;
+        return score;
+    }
+
     const search = () => {
         let pos;
         let score = -Infinity;
@@ -88,16 +103,7 @@ const opponent = () => {
                 let turnoverList = board.canTurnoverList(x, y, color);
                 let selfCount = turnoverList.length;
                 if (selfCount > 0) {
-                    let temp = new Board();
-                    temp.board = JSON.parse(JSON.stringify(board.board));
-                    temp.putStone(x, y, color);
-                    let opponentCount = getMax(temp, color === 1 ? 2 : 1).max;
-                    let tempScore = selfCount - opponentCount * 1.5;
-                    if (isEdge(x, y)) {
-                        tempScore += 5;
-                    } else if (isNearEdge(x, y)) {
-                        tempScore -= 5;
-                    }
+                    let tempScore = calcScore(board, color, x, y);
                     if (tempScore > score) {
                         score = tempScore;
                         pos = { x, y };
