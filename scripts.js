@@ -156,10 +156,12 @@ const displayBoard = () => {
             newTd.setAttribute('class', 'cell');
             let newButton = document.createElement('button');
             newButton.setAttribute('id', `${h}-${w}`);
-            if (board.getStoneColor(w, h) === 1) {
+            //let color = board.getStoneColor(w, h);
+            let color = board.getStoneColorToBitBoard(w, h);
+            if (color === 1) {
                 newButton.textContent = '●';
                 newButton.setAttribute('class', 'black');
-            } else if (board.getStoneColor(w, h) === 2) {
+            } else if (color === 2) {
                 newButton.textContent = '●';
                 newButton.setAttribute('class', 'white');
             }

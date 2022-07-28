@@ -11,6 +11,10 @@ class Board {
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0]
         ];
+
+        this.boardBlack = 0x0000000810000000n;
+        this.boardWhite = 0x0000001008000000n;
+
         this.black = 2;         // 黒の石の数
         this.white = 2;         // 白の石の数
     }
@@ -135,11 +139,31 @@ class Board {
         return this.board[y][x];
     }
 
+    getStoneColorToBitBoard(x, y) {
+        let mask = this.pointToBit(x, y);
+        if (this.boardBlack & mask) {
+            return 1;
+        } else if (this.boardWhite & mask) {
+            return 2;
+        } else {
+            return 0;
+        }
+    }
+
     clone() {
         let clone = new Board();
         clone.board = JSON.parse(JSON.stringify(this.board));
         clone.black = this.black;
         clone.white = this.white;
         return clone;
+    }
+
+    pointToBit(x, y) {
+        let mask = 0x8000000000000000n;
+        if (0 <= x < 8 && 0 <= y < 8) {
+            return mask >> BigInt(y * 8 + x);
+        } else {
+            throw new Error('out of range');
+        }
     }
 }
