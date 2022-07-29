@@ -6,41 +6,65 @@ const blackCounter = document.getElementById('black-counter');
 const whiteCounter = document.getElementById('white-counter');
 
 
+const pointToBit = (x, y) => {
+    let mask = 0x8000000000000000n;
+    if (0 <= x < 8 && 0 <= y < 8) {
+        return mask >> BigInt(y * 8 + x);
+    } else {
+        throw new Error('out of range');
+    }
+}
+
+
+const countUp = (board) => {
+    board = board - ((board >> 1n) & 0x5555555555555555n);
+    board = (board & 0x3333333333333333n) + ((board >> 2n) & 0x3333333333333333n);
+    board = (board + (board >> 4n)) & 0x0f0f0f0f0f0f0f0fn;
+    board = board + (board >> 8n);
+    board = board + (board >> 16n);
+    board = board + (board >> 32n);
+    return board & 0x0000007fn;
+}
+
+
+const judge = () => {
+    let black = countUp(board.boardBlack);
+    let white = countUp(board.boardWhite);
+    if (black > white) {
+        return `${black} 対 ${white}で黒の勝ちです。`;
+    } else if (black < white) {
+        return `${white} 対 ${black}で白の勝ちです。`;
+    } else {
+        return `${black} 対 ${white}で引き分けです。`;
+    }
+}
+
+
 // プレイヤーが石を置こうとした時の処理
-const handleClick = (h, w) => {
-    // 既に石が置かれている場合は処理しない
-    if (board.getStoneColor(w, h) !== 0) return;
+const handleClick = (pos) => {
+    // 合法手でない場合は処理を終了する
+    if (!board.isLegal(pos)) return;
     // 連続で操作出来ないように覆いを付ける
     coverElement.style.display = 'block';
 
     // 石を置く
-    let putted = board.putStone(w, h, player);
-    // 正しく処理できた場合
-    if (putted) {
-        // 盤面の表示を更新
-        displayBoard();
-        displayCounter();
-        // 終了の判定
-        let judgeResult = board.judge();
-        if (judgeResult === 'continue') {
-            // 続行の場合
-            if (board.canPut(player === 1 ? 2 : 1)) {
-                // 相手が石を置ける場合はCPUのターンに移行
-                opponent();
-            } else {
-                // 相手が石を置けない場合
-                // その旨を表示し、盤面の数字を更新
-                alert('置くことの出来るマスが存在しないため、CPUのターンがスキップされます。')
-                displayNumber();
-            }
-        } else {
-            // 終了の場合
-            // リザルトを表示
-            alert(judgeResult)
-            return;
-        }
-    }
+    board.move(pos);
 
+    displayBoard();
+    displayCounter();
+    // 終了の判定
+    if (!board.canPut()) {
+        board.changeTurn();
+        if (!board.canPut()) {
+            alert(judge());
+            return;
+        } else {
+            alert('置くことの出来るマスが存在しないため、CPUのターンがスキップされます。')
+            displayNumber();
+        }
+    } else {
+        opponent();
+    }
     // 覆いを外す
     coverElement.style.display = 'none';
 }
@@ -49,97 +73,42 @@ const handleClick = (h, w) => {
 // CPUのターン
 const opponent = () => {
     let pos;
-    let color = player === 1 ? 2 : 1;
 
-    const getMax = (board, color) => {
+    const getMax = () => {
         let max = 0;
         let pos;
         for (let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
-                if (board.getStoneColor(x, y) !== 0) continue;
-                let turnoverList = board.canTurnoverList(x, y, color);
-                if (turnoverList.length > max) {
-                    max = turnoverList.length;
-                    pos = { x, y };
+                let mask = pointToBit(x, y);
+                if (!board.isLegal(mask)) continue;
+                let flipCount = countUp(board.flipList(mask, board.turn));
+                if (flipCount > max) {
+                    max = flipCount;
+                    pos = mask;
                 }
             }
         }
         return { max, pos };
     }
 
-    const isEdge = (x, y) => {
-        return y === 7 && x === 7 || y === 0 && x === 0 || y === 7 && x === 0 || y === 0 && x === 7
-    }
-
-    const isNearEdge = (x, y) => {
-        let upperLeft = y === 1 && x === 1 || y === 0 && x === 1 || y === 1 && x === 0;
-        let upperRight = y === 1 && x === 6 || y === 0 && x === 6 || y === 1 && x === 7;
-        let lowerLeft = y === 7 && x === 1 || y === 6 && x === 1 || y === 6 && x === 0;
-        let lowerRight = y === 6 && x === 6 || y === 7 && x === 6 || y === 6 && x === 7
-        return upperLeft || upperRight || lowerLeft || lowerRight;
-    }
-
-    const calcScore = (board, color, x, y) => {
-        if (board.getStoneColor(x, y) !== 0) return;
-        let turnoverList = board.canTurnoverList(x, y, color);
-        if (turnoverList.length === 0) return;
-        let score = 0;
-        score += turnoverList.length;
-        let nextBoard = board.clone();
-        nextBoard.putStone(x, y, color);
-        let opponent = getMax(nextBoard, color === 1 ? 2 : 1);
-        score -= opponent.max * 1.5;
-        if (isEdge(x, y)) score += 5;
-        if (isNearEdge(x, y)) score -= 5;
-        return score;
-    }
-
-    const search = () => {
-        let pos;
-        let score = -Infinity;
-        for (let y = 0; y < 8; y++) {
-            for (let x = 0; x < 8; x++) {
-                if (board.getStoneColor(x, y) !== 0) continue;
-                let turnoverList = board.canTurnoverList(x, y, color);
-                let selfCount = turnoverList.length;
-                if (selfCount > 0) {
-                    let tempScore = calcScore(board, color, x, y);
-                    if (tempScore > score) {
-                        score = tempScore;
-                        pos = { x, y };
-                    }
-                }
-            }
-        }
-        return pos;
-    }
-
-    pos = search();
+    pos = getMax().pos;
 
     // 石を置く
-    board.putStone(pos.x, pos.y, color)
+    board.move(pos)
     // 盤面の表示を更新
     displayBoard();
     displayCounter();
-    // 終了の判定
-    judgeResult = board.judge();
-    if (judgeResult === 'continue') {
-        // 続行の場合
-        if (!board.canPut(color === 1 ? 2 : 1)) {
-            // プレイヤーが石を置けない場合
-            // その旨を表示し、もう一度CPUのターンに移行
-            alert('置く事の出来るマスが存在しないため、あなたのターンがスキップされます。')
-            opponent(color);
+
+    if (!board.canPut()) {
+        board.changeTurn();
+        if (!board.canPut()) {
+            alert(judge());
+            return;
         } else {
-            // プレイヤーが石を置ける場合
-            // 盤面の数字を更新
-            displayNumber();
+            alert('置くことの出来るマスが存在しないため、あなたターンがスキップされます。')
         }
     } else {
-        // 終了の場合
-        // リザルトを表示
-        alert(judgeResult)
-        return;
+        displayNumber();
     }
 }
 
@@ -156,8 +125,7 @@ const displayBoard = () => {
             newTd.setAttribute('class', 'cell');
             let newButton = document.createElement('button');
             newButton.setAttribute('id', `${h}-${w}`);
-            //let color = board.getStoneColor(w, h);
-            let color = board.getStoneColorToBitBoard(w, h);
+            let color = board.getStoneColor(pointToBit(w, h));
             if (color === 1) {
                 newButton.textContent = '●';
                 newButton.setAttribute('class', 'black');
@@ -166,7 +134,7 @@ const displayBoard = () => {
                 newButton.setAttribute('class', 'white');
             }
             newButton.addEventListener('click', () => {
-                handleClick(h, w);
+                handleClick(pointToBit(w, h));
             })
             newTd.appendChild(newButton);
             newTr.appendChild(newTd);
@@ -181,31 +149,30 @@ const displayBoard = () => {
 const displayNumber = () => {
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
-            if (board.getStoneColor(j, i) !== 0) continue;
-            let turnoverList = board.canTurnoverList(j, i, player);
-            if (turnoverList.length > 0) {
-                let newSpan = document.createElement('span');
-                newSpan.setAttribute('class', 'number');
-                newSpan.textContent = turnoverList.length;
-                document.getElementById(`${i}-${j}`).appendChild(newSpan);
-            }
+            if (!board.isLegal(pointToBit(j, i))) continue;
+            let flipCount = countUp(board.flipList(pointToBit(j, i), board.turn));
+            let newSpan = document.createElement('span');
+            newSpan.setAttribute('class', 'number');
+            newSpan.textContent = flipCount;
+            document.getElementById(`${i}-${j}`).appendChild(newSpan);
         }
     }
 }
 
 
 const displayCounter = () => {
-    blackCounter.textContent = board.black;
-    whiteCounter.textContent = board.white;
+    blackCounter.textContent = countUp(board.boardBlack);
+    whiteCounter.textContent = countUp(board.boardWhite);
 }
 
 
-let board = new Board();
+let board = new BitBoard();
 let player = Math.floor(Math.random() * 2) + 1;
 if (player === 2) {
-    opponent(1);
+    opponent();
     colorElement.textContent = '○';
-};
+}
+
 displayBoard();
 displayNumber();
 displayCounter();
