@@ -106,6 +106,7 @@ const opponent = () => {
             return;
         } else {
             alert('置くことの出来るマスが存在しないため、あなたターンがスキップされます。')
+            opponent();
         }
     } else {
         displayNumber();
