@@ -3,12 +3,12 @@ class BitBoard {
         this.boardBlack = 0x0000000810000000n;
         this.boardWhite = 0x0000001008000000n;
         this.legalBoard = 17729692631040n;
-        
+        this.turn = 1;
+
+        //Constants
         this._verticalMask = 0x7e7e7e7e7e7e7e7en;
         this._horizonMask  = 0x00ffffffffffff00n;
         this._allSideMask  = 0x007e7e7e7e7e7e00n;
-
-        this.turn = 1;
     }
 
 
@@ -67,8 +67,8 @@ class BitBoard {
     flipList(pos, color) {
         let self = color === 1 ? this.boardBlack : this.boardWhite;
         let opponent = color === 1 ? this.boardWhite : this.boardBlack;
-        const lookup = this.lookup;
 
+        const lookup = this.lookup;
         const _lookup = (mask, shift) => {
             let result = lookup(pos, opponent, mask, shift);
             if (!(self & shift(result))) result = 0n;
@@ -109,4 +109,12 @@ class BitBoard {
         return this.legalBoard !== 0n;
     }
 
+    clone() {
+        let clone = new BitBoard();
+        clone.boardBlack = this.boardBlack;
+        clone.boardWhite = this.boardWhite;
+        clone.legalBoard = this.legalBoard;
+        clone.turn = this.turn;
+        return clone;
+    }
 }

@@ -40,6 +40,56 @@ const judge = () => {
 }
 
 
+// 盤面評価
+let scoreMemo = [];
+const scoreInit = () => {
+    let score = [30, -12, 0, -1,
+                -12, -15, -3, -3,
+                0, -3, 0, -1,
+                -1, -3, -1, -1]
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 2 ** 8; j++) {
+            scoreMemo.push(0);
+            for (let k = 0; k < 8; k++) {
+                if ((j >> k) & 1) {
+                    if (i < 4) {
+                        if (k < 4) {
+                            scoreMemo[-1] += score[i * 4 + k]
+                        } else {
+                            scoreMemo[-1] += score[i * 4 + (7 - k)]
+                        }
+                    } else {
+                        if (k < 4) {
+                            scoreMemo[-1] += score[(7 - i) * 4 + k]
+                        } else {
+                            scoreMemo[-1] += score[(7 - i) * 4 + (7 - k)]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+scoreInit();
+
+const evaluate = (board) => {
+    let blackEval = 0;
+    let whiteEval = 0;
+    for (let i = 0n; i < 8; i++) {
+        black = (board.boardBlack >> (i * 8n)) & 0xffn;
+        white = (board.boardWhite >> (i * 8n)) & 0xffn;
+        blackEval += scoreMemo[i * 256n + black];
+        whiteEval += scoreMemo[i * 256n + white];
+    }
+
+    if (board.turn === 1) {
+        return blackEval - whiteEval;
+    } else {
+        return whiteEval - blackEval;
+    }
+}
+
+
 // プレイヤーが石を置こうとした時の処理
 const handleClick = (pos) => {
     // 合法手でない場合は処理を終了する
@@ -72,26 +122,26 @@ const handleClick = (pos) => {
 
 // CPUのターン
 const opponent = () => {
-    let pos;
-
-    const getMax = () => {
-        let max = 0;
-        let pos;
-        for (let y = 0; y < 8; y++) {
-            for (let x = 0; x < 8; x++) {
-                let mask = pointToBit(x, y);
-                if (!board.isLegal(mask)) continue;
-                let flipCount = countUp(board.flipList(mask, board.turn));
-                if (flipCount > max) {
-                    max = flipCount;
-                    pos = mask;
+    const search = () => {
+        let eval = -Infinity;
+        let pos = 0x8000000000000000n;
+        let res;
+        for (let i = 0; i < 64; i++) {
+            if (board.isLegal(pos)) {
+                let cloneBoard = board.clone();
+                cloneBoard.move(pos);
+                let score = -evaluate(cloneBoard);
+                if (score > eval) {
+                    eval = score;
+                    res = pos;
                 }
             }
+            pos >>= 1n;
         }
-        return { max, pos };
+        return res;
     }
 
-    pos = getMax().pos;
+    let pos = search();
 
     // 石を置く
     board.move(pos)
@@ -153,9 +203,32 @@ const displayNumber = () => {
             if (!board.isLegal(pointToBit(j, i))) continue;
             let flipCount = countUp(board.flipList(pointToBit(j, i), board.turn));
             let newSpan = document.createElement('span');
+            let button = document.getElementById(`${i}-${j}`);
             newSpan.setAttribute('class', 'number');
             newSpan.textContent = flipCount;
-            document.getElementById(`${i}-${j}`).appendChild(newSpan);
+            
+            newSpan.addEventListener('mouseover', () => {
+                let flipList = board.flipList(pointToBit(j, i), board.turn);
+                for (let y = 0; y < 8; y++) {
+                    for (let x = 0; x < 8; x++) {
+                        if ((flipList & pointToBit(x, y)) !== 0n) {
+                            let button = document.getElementById(`${y}-${x}`);
+                            button.classList.add('flip');
+                        }
+                    }
+                }
+            })
+            
+            newSpan.addEventListener('mouseout', () => {
+                for (let y = 0; y < 8; y++) {
+                    for (let x = 0; x < 8; x++) {
+                        let button = document.getElementById(`${y}-${x}`);
+                        button.classList.remove('flip');
+                    }
+                }
+            })
+            
+            button.appendChild(newSpan);
         }
     }
 }
