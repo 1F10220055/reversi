@@ -49,45 +49,29 @@ const scoreInit = () => {
                 -1, -3, -1, -1]
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 2 ** 8; j++) {
-            scoreMemo.push(0);
+            let scoreTemp = 0;
             for (let k = 0; k < 8; k++) {
                 if ((j >> k) & 1) {
                     if (i < 4) {
                         if (k < 4) {
-                            scoreMemo[-1] += score[i * 4 + k]
+                            scoreTemp += score[i * 4 + k]
                         } else {
-                            scoreMemo[-1] += score[i * 4 + (7 - k)]
+                            scoreTemp += score[i * 4 + (7 - k)]
                         }
                     } else {
                         if (k < 4) {
-                            scoreMemo[-1] += score[(7 - i) * 4 + k]
+                            scoreTemp += score[(7 - i) * 4 + k]
                         } else {
-                            scoreMemo[-1] += score[(7 - i) * 4 + (7 - k)]
+                            scoreTemp += score[(7 - i) * 4 + (7 - k)]
                         }
                     }
                 }
             }
+            scoreMemo.push(scoreTemp);
         }
     }
 }
 scoreInit();
-
-const evaluate = (board) => {
-    let blackEval = 0;
-    let whiteEval = 0;
-    for (let i = 0n; i < 8; i++) {
-        black = (board.boardBlack >> (i * 8n)) & 0xffn;
-        white = (board.boardWhite >> (i * 8n)) & 0xffn;
-        blackEval += scoreMemo[i * 256n + black];
-        whiteEval += scoreMemo[i * 256n + white];
-    }
-
-    if (board.turn === 1) {
-        return blackEval - whiteEval;
-    } else {
-        return whiteEval - blackEval;
-    }
-}
 
 
 // プレイヤーが石を置こうとした時の処理
@@ -120,9 +104,65 @@ const handleClick = (pos) => {
 }
 
 
+const evaluateTest = (board) => {
+    let blackEval = 0;
+    for (let i = 0n; i < 8; i++) {
+        black = (board >> (i * 8n)) & 0xffn;
+        blackEval += scoreMemo[i * 256n + black];
+    }
+
+    return blackEval;
+}
+
+
 // CPUのターン
 const opponent = () => {
-    const search = () => {
+    const evaluate = (board) => {
+        let blackEval = 0;
+        let whiteEval = 0;
+        for (let i = 0n; i < 8; i++) {
+            black = (board.boardBlack >> (i * 8n)) & 0xffn;
+            white = (board.boardWhite >> (i * 8n)) & 0xffn;
+            blackEval += scoreMemo[i * 256n + black];
+            whiteEval += scoreMemo[i * 256n + white];
+        }
+    
+        if (board.turn === 1) {
+            return blackEval - whiteEval;
+        } else {
+            return whiteEval - blackEval;
+        }
+    }
+
+
+    const negaMax = (board, depth, pass) => {
+        if (depth === 0) {
+            return evaluate(board);
+        }
+
+        let pos = 0x8000000000000000n;
+        let eval = -Infinity;
+        for (let i = 0; i < 64; i++) {
+            if (board.isLegal(pos)) {
+                let nextBoard = board.clone();
+                nextBoard.move(pos);
+                eval = Math.max(eval, -negaMax(nextBoard, depth - 1, false));
+            }
+            pos >>= 1n;
+        }
+
+        if (eval === -Infinity) {
+            if (pass) {
+                return evaluate(board);
+            }
+            board.changeTurn();
+            return -negaMax(board, depth, true);
+        }
+        return eval;
+    }
+
+
+    const search = (depth) => {
         let eval = -Infinity;
         let pos = 0x8000000000000000n;
         let res;
@@ -130,7 +170,7 @@ const opponent = () => {
             if (board.isLegal(pos)) {
                 let cloneBoard = board.clone();
                 cloneBoard.move(pos);
-                let score = -evaluate(cloneBoard);
+                let score = -negaMax(cloneBoard, depth - 1, false);
                 if (score > eval) {
                     eval = score;
                     res = pos;
@@ -141,7 +181,8 @@ const opponent = () => {
         return res;
     }
 
-    let pos = search();
+    //pos = getMax().pos;
+    let pos = search(3);
 
     // 石を置く
     board.move(pos)
