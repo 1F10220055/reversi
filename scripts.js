@@ -104,17 +104,6 @@ const handleClick = (pos) => {
 }
 
 
-const evaluateTest = (board) => {
-    let blackEval = 0;
-    for (let i = 0n; i < 8; i++) {
-        black = (board >> (i * 8n)) & 0xffn;
-        blackEval += scoreMemo[i * 256n + black];
-    }
-
-    return blackEval;
-}
-
-
 // CPUのターン
 const opponent = () => {
     const evaluate = (board) => {
