@@ -6,6 +6,7 @@ const blackCounter = document.getElementById('black-counter');
 const whiteCounter = document.getElementById('white-counter');
 
 
+// 座標からbit値に変換する関数
 const pointToBit = (x, y) => {
     let mask = 0x8000000000000000n;
     if (0 <= x < 8 && 0 <= y < 8) {
@@ -16,6 +17,7 @@ const pointToBit = (x, y) => {
 }
 
 
+// bitの中の1の数を数える関数
 const countUp = (board) => {
     board = board - ((board >> 1n) & 0x5555555555555555n);
     board = (board & 0x3333333333333333n) + ((board >> 2n) & 0x3333333333333333n);
@@ -110,13 +112,13 @@ const opponent = () => {
         let blackEval = 0;
         let whiteEval = 0;
         for (let i = 0n; i < 8; i++) {
-            black = (board.boardBlack >> (i * 8n)) & 0xffn;
-            white = (board.boardWhite >> (i * 8n)) & 0xffn;
-            blackEval += scoreMemo[i * 256n + black];
-            whiteEval += scoreMemo[i * 256n + white];
+            let blackBit = (board.boardBlack >> (i * 8n)) & 0xffn;
+            let whiteBit = (board.boardWhite >> (i * 8n)) & 0xffn;
+            blackEval += scoreMemo[i * 256n + blackBit];
+            whiteEval += scoreMemo[i * 256n + whiteBit];
         }
     
-        if (board.turn === 1) {
+        if (board.turn === black) {
             return blackEval - whiteEval;
         } else {
             return whiteEval - blackEval;
@@ -170,7 +172,6 @@ const opponent = () => {
         return res;
     }
 
-    //pos = getMax().pos;
     let pos = search(3);
 
     // 石を置く
@@ -207,10 +208,10 @@ const displayBoard = () => {
             let newButton = document.createElement('button');
             newButton.setAttribute('id', `${h}-${w}`);
             let color = board.getStoneColor(pointToBit(w, h));
-            if (color === 1) {
+            if (color === black) {
                 newButton.textContent = '●';
                 newButton.setAttribute('class', 'black');
-            } else if (color === 2) {
+            } else if (color === white) {
                 newButton.textContent = '●';
                 newButton.setAttribute('class', 'white');
             }
@@ -271,8 +272,8 @@ const displayCounter = () => {
 
 
 let board = new BitBoard();
-let player = Math.floor(Math.random() * 2) + 1;
-if (player === 2) {
+let player = Math.floor(Math.random() * 2);
+if (player === white) {
     opponent();
     colorElement.textContent = '○';
 }
