@@ -270,7 +270,8 @@ const displayCounter = () => {
     whiteCounter.textContent = countUp(board.boardWhite);
 }
 
-
+const black = 0;
+const white = 1;
 let board = new BitBoard();
 let player = Math.floor(Math.random() * 2);
 if (player === white) {
